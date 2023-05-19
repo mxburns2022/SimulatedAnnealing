@@ -21,16 +21,26 @@
  * For now, assume all couplings are visible, but code to support experiments using only **partial information**
  * 
 */
+template <typename T>
+std::ostream& operator<<(std::ostream& o, std::vector<T> vec) {
+    o << "[";
+    if (vec.size() > 0) {
+        for (size_t i = 0; i < vec.size(); i++) {
+            o << vec[i] << ", ";
+        }
+        o << vec.back();
+    }
+    o << "]";
+    return o;
+}
 enum class Traversal {
     Topological, // Perform a topological sort on the graph using random seed vertices
     Random, // scramble each time
     Sequential // traverse in variable order (naive)
 };
 struct SALog {
-    double T; // Temperature
+    double Beta; // Temperature
     double m; // average magnetization per spin
-    size_t partition; // index of current partition
-    size_t sync_count; // number of previous synchronizations
     size_t epoch; // epoch in current sync phase
 };
 struct SparseEntry {
@@ -69,10 +79,12 @@ class MixedSA {
         size_t active_size;
         size_t epochs;
         size_t active_epochs;
-        double T0;
-        double T1;
-        double T;
-        double TStep;
+        double Beta0;
+        double Beta1;
+        double Beta;
+        double BetaStep;
+        double M;
+        double ene;
         size_t next_active;
         size_t next_fixed;
         size_t active_index;
@@ -101,6 +113,7 @@ class MixedSA {
         void flip(size_t index);
         void synchonize();
         void set_bias();
+        double _M();
 
         
 
@@ -108,26 +121,26 @@ class MixedSA {
     public:
         MixedSA(): problem_size(0),
                    epochs(0),
-                   T0(0),
-                   T1(0),
-                   T(0),
+                   Beta0(0),
+                   Beta1(0),
+                   Beta(0),
                    next_active(0),
                    next_fixed(0),
                    all_visible(false),
                    all_active(false) {};
-        MixedSA(std::string gpath, double _T0, double _T1, size_t _epochs, size_t _active_epochs, size_t _active = 0, size_t seed = 0):  \
+        MixedSA(std::string gpath, double _Beta0, double _Beta1, size_t _epochs, size_t _active_epochs, size_t _active = 0, size_t seed = 0):  \
                    problem_size(0),
                    epochs(_epochs),
                    active_epochs(_active_epochs),
-                   T0(_T0),
-                   T1(_T1),
-                   T(_T0),
+                   Beta0(_Beta0),
+                   Beta1(_Beta1),
+                   Beta(_Beta0),
                    random_gen(seed) {
             // read input data
             read_graph(gpath);
             active_size = (_active == 0) ? problem_size : _active;
-            TStep = (T1-T0) / (epochs - 1);
-            logdata = std::vector<SALog>(epochs);
+            BetaStep = (Beta1-Beta0) / (epochs - 1);
+            logdata.reserve(epochs);
             activeset.reserve(active_size);
             fixedset = std::unordered_set<size_t>(problem_size-active_size);
             rng = std::uniform_real_distribution<double>(0, 1);
@@ -141,5 +154,6 @@ class MixedSA {
         double energy(); // calculate energy (-1 for whole problem)
         double anneal(); // anneal, return the energy found at the end
         double cut();
+        void dumplog(std::string outfile);
 
 };

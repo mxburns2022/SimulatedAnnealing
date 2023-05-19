@@ -3,13 +3,13 @@
 
 void MixedSA::update_T() {
     // linearly update
-    T += TStep;
+    Beta += BetaStep;
 };
 bool MixedSA::accept(size_t proposed_flip_index){
     if (dE[proposed_flip_index] < 0) {
         return true;
     }
-    return (exp(dE[proposed_flip_index] / T) <= rng(random_gen));
+    return (exp(-dE[proposed_flip_index] * Beta) > rng(random_gen));
 };
 void MixedSA::read_graph(std::string gpath){
     std::fstream infile;
@@ -128,7 +128,6 @@ void MixedSA::get_next_active() {
             biases[next_active] += ACC2D(J, j, next_active, problem_size) * state[j];
         }
     }
-    std::cout << biases[next_active] << std::endl;
     active_index = ( active_index + 1 ) % active_size;
      if (traversal_type == Traversal::Sequential) {
         next_active = (next_active + 1) % problem_size;
@@ -201,6 +200,35 @@ double MixedSA::cut(){
     }
     return result;
 }
+double MixedSA::_M(){
+    double _Mval = 0.0;
+    for (int8_t si : state) {
+        _Mval += si;
+    }
+    return _Mval;
+}
+std::ostream& operator<<(std::ostream& o, std::vector<int8_t> vec) {
+    o << "[";
+    if (vec.size() > 0) {
+        for (size_t i = 0; i < vec.size(); i++) {
+            o << static_cast<int>(vec[i]) << ", ";
+        }
+        o << static_cast<int>(vec.back());
+    }
+    o << "]";
+    return o;
+}
+void MixedSA::dumplog(std::string outpath) {
+    std::fstream outstream;
+    outstream.open(outpath, std::fstream::out);
+    outstream << "epoch,beta,M" << std::endl;
+    for (SALog entry: logdata) {
+        outstream << entry.epoch << "," <<
+                     entry.Beta << "," <<
+                     entry.m    << std::endl;
+    }
+    outstream.close();
+}
 // anneal, return the energy found at the end
 double MixedSA::anneal(){
     std::uniform_int_distribution<size_t> index_sampler(0, active_size-1) ;
@@ -214,34 +242,38 @@ double MixedSA::anneal(){
     activeset = std::unordered_set<size_t>(activelist.begin(), activelist.end());
     fixedset = std::unordered_set<size_t>(full_list.begin() + active_size, full_list.end());
     set_bias();
-    double ene = energy();
+    ene = energy();
+    M = _M();
     double best_ene = ene;
     std::vector<int8_t> best_state = state;
+    size_t flips = 0;
     for (size_t e = 0; e < epochs; e+=active_epochs) {
         for (size_t ae = 0; ae < active_epochs; ae++) {
-            size_t indval = index_sampler(random_gen);
-            size_t index = activelist.at(indval);
-            assert(activeset.find(index) != activeset.end());
-            
-            assert(activeset.size() == active_size);
-            if (accept(index)) {
-                ene += dE[index];
-#ifndef NDEBUG
-                state[index] = -state[index];
-                std::cout << index << std::endl;
-                std::cout << ene << " " << dE[index] << " " << energy() << std::endl;
-                assert(ene == energy());
-                state[index] = -state[index];
-#endif
-                flip(index);
-                if (ene < best_ene) {
-                    best_ene = ene;
-                    best_state = state;
+            for (size_t index : activelist){
+
+                // size_t indval = index_sampler(random_gen);
+                
+                if (accept(index)) {
+                    flips += 1;
+                    ene += dE[index];
+                    M -= 2*state[index];
+    #ifndef NDEBUG
+                    state[index] = -state[index];
+                    //std::cout << index << std::endl;
+                    //std::cout << ene << " " << dE[index] << " " << energy() << std::endl;
+                    assert(ene == energy());
+                    state[index] = -state[index];
+    #endif
+                    flip(index);
+                    if (ene < best_ene) {
+                        best_ene = ene;
+                        best_state = state;
+                    }
+ 
                 }
             }
-            
+            logdata.push_back({Beta, M / problem_size, e + ae});
             update_T();
-            std::cout << T << std::endl;
         }
         if (active_size != problem_size)
             get_next_active();
@@ -249,16 +281,14 @@ double MixedSA::anneal(){
         std::vector<double> temp = biases;
         set_bias();
         for (auto i : activelist) {
-            if (std::abs(temp[i] - biases[i]) > 1e-10) {
-                std::cout << i <<
-                " " << temp[i] <<
-                " " << biases[i] << std::endl;
-            }
             assert(std::abs(temp[i] - biases[i]) < 1e-10);
         }
 #endif
         //exit(0);
     }
-    state = best_state;
+
+    std::cout << state << std::endl;
+    std::cout << ene << std::endl;
+    //state = best_state;
     return best_ene;
 }; 
