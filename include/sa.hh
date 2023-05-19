@@ -2,6 +2,7 @@
 #include <vector>
 #include <algorithm>
 #include <random>
+#include <iostream>
 #include <string>
 #include <list>
 #include <fstream>
@@ -20,7 +21,11 @@
  * For now, assume all couplings are visible, but code to support experiments using only **partial information**
  * 
 */
-
+enum class Traversal {
+    Topological, // Perform a topological sort on the graph using random seed vertices
+    Random, // scramble each time
+    Sequential // traverse in variable order (naive)
+};
 struct SALog {
     double T; // Temperature
     double m; // average magnetization per spin
@@ -32,7 +37,12 @@ struct SparseEntry {
     size_t u; // index
     double w; // Coupling strength
 };
-#define ACC2D(vec, i, j, size) (vec)[(i)*(size) + (j)]
+struct Edge {
+    size_t u; // index
+    size_t v; // index
+    double w; // Coupling strength
+};
+#define ACC2D(vec, i, j, size) (vec).at((i)*(size) + (j))
 class MixedSA {
     private:
     /**
@@ -54,16 +64,18 @@ class MixedSA {
      * 9. Net magnetization storage
      * 10. Temperature regulation 
     */
-        // 
+        Traversal traversal_type = Traversal::Sequential;
         size_t problem_size;
-        size_t partition_epochs;
-        size_t synch_count;
-        size_t partition_count;
+        size_t active_size;
+        size_t epochs;
+        size_t active_epochs;
         double T0;
         double T1;
         double T;
-        double TSync;
         double TStep;
+        size_t next_active;
+        size_t next_fixed;
+        size_t active_index;
         bool all_visible; // store whether all spins are visible
         bool all_active; // store whether all spins are active.
         bool sparse;
@@ -73,74 +85,61 @@ class MixedSA {
         std::vector<double> dE;
         std::mt19937 random_gen;
         std::uniform_real_distribution<double> rng;
-        std::vector<size_t> partition_sizes;
-        std::vector<size_t> membership;
-        std::vector<std::vector<size_t>> partitions;
-        std::vector<std::unordered_set<size_t>> visible_sets; // only used if !all_visible and !all_active
-        std::vector<std::vector<int8_t>> local_states; // store variable states for each partition
+        std::unordered_set<size_t> activeset;
+        std::vector<size_t> activelist;
+        std::unordered_set<size_t> fixedset;
+        std::vector<size_t> traversal_order;
         std::vector<SALog> logdata;
+        std::vector<double> biases;
         
 
         void update_T();
         bool accept(size_t proposed_flip_index);
         void read_graph(std::string gpath);
-        void partition();
+        void get_next_active();
+        void set_next_fixed();
         void flip(size_t index);
         void synchonize();
+        void set_bias();
 
         
 
 
     public:
         MixedSA(): problem_size(0),
-                   partition_epochs(0),
-                   synch_count(0),
-                   partition_count(0),
+                   epochs(0),
                    T0(0),
                    T1(0),
-                   TSync(0),
                    T(0),
+                   next_active(0),
+                   next_fixed(0),
                    all_visible(false),
                    all_active(false) {};
-        MixedSA(std::string gpath, double _T0, double _T1, size_t _part_count, size_t _epochs, int64_t max_vis = -1, size_t _synch_count = 1, size_t seed = 0):  \
+        MixedSA(std::string gpath, double _T0, double _T1, size_t _epochs, size_t _active_epochs, size_t _active = 0, size_t seed = 0):  \
                    problem_size(0),
-                   partition_epochs(_epochs),
-                   synch_count(_synch_count),
-                   partition_count(_part_count),
+                   epochs(_epochs),
+                   active_epochs(_active_epochs),
                    T0(_T0),
                    T1(_T1),
-                   TSync(_T0),
                    T(_T0),
-                   all_visible(max_vis == -1),
-                   all_active(_part_count == 1),
                    random_gen(seed) {
             // read input data
             read_graph(gpath);
-            TStep = (T1-T0) / (partition_epochs * synch_count - 1);
-            membership = std::vector<size_t>(problem_size);
-            dE = std::vector<double>(problem_size, 0.0);
-            logdata = std::vector<SALog>(synch_count * partition_epochs * partition_count);
-            partitions = std::vector<std::vector<size_t>>(partition_count);
-            visible_sets = std::vector<std::unordered_set<size_t>>(partition_count);
-            partition_sizes = std::vector<size_t>(partition_count);
+            active_size = (_active == 0) ? problem_size : _active;
+            TStep = (T1-T0) / (epochs - 1);
+            logdata = std::vector<SALog>(epochs);
+            activeset.reserve(active_size);
+            fixedset = std::unordered_set<size_t>(problem_size-active_size);
             rng = std::uniform_real_distribution<double>(0, 1);
-            local_states = std::vector<std::vector<int8_t>>(partition_count);
-            state.reserve(problem_size);
-            std::bernoulli_distribution bin;
-            // randomly initialize state
-            for (size_t i = 0; i < problem_size; i++) {
-                int8_t qubov = static_cast<int8_t>(bin(random_gen));
-                int8_t spin = 2*qubov - 1;
-                state.push_back(spin);
-            }
-            // copy initial state to each local statevector
-            for (size_t i = 0; i < partition_count; i++) {
-                local_states[i] = std::vector<int8_t>(state.begin(), state.end());
-            }
-            partition();
+            traversal_order = std::vector<size_t>(problem_size);
+            biases = std::vector<double>(problem_size);
+
+ 
+           //set_order();
         }
-        double energy(int64_t partition); // calculate energy (-1 for whole problem)
+        double energy_active(); // calculate energy (-1 for whole problem)
         double energy(); // calculate energy (-1 for whole problem)
         double anneal(); // anneal, return the energy found at the end
+        double cut();
 
 };
