@@ -41,6 +41,7 @@ enum class Traversal {
 struct SALog {
     double Beta; // Temperature
     double m; // average magnetization per spin
+    double ene;
     size_t epoch; // epoch in current sync phase
 };
 struct SparseEntry {
@@ -79,6 +80,7 @@ class MixedSA {
         size_t active_size;
         size_t epochs;
         size_t active_epochs;
+        size_t beta_epochs = 3000; // number of epochs to run at fixed beta
         double Beta0;
         double Beta1;
         double Beta;

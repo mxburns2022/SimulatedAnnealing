@@ -9,7 +9,7 @@ bool MixedSA::accept(size_t proposed_flip_index){
     if (dE[proposed_flip_index] < 0) {
         return true;
     }
-    return (exp(-dE[proposed_flip_index] * Beta) > rng(random_gen));
+    return exp(-dE[proposed_flip_index] * Beta) > rng(random_gen);
 };
 void MixedSA::read_graph(std::string gpath){
     std::fstream infile;
@@ -61,15 +61,15 @@ void MixedSA::read_graph(std::string gpath){
         u += offset;
         v += offset;
         if (sparse) {
-            Jsparse[u].push_back({v, w});
-            Jsparse[v].push_back({u, w});
+            Jsparse[u].push_back({v, -w});
+            Jsparse[v].push_back({u, -w});
         } else {
-            ACC2D(J, u, v, nodes) = w;
-            ACC2D(J, v, u, nodes) = w;
+            ACC2D(J, u, v, nodes) = -w;
+            ACC2D(J, v, u, nodes) = -w;
         }
         // initialize dE
-        dE[u] -= 2*state[u]*state[v]*w;
-        dE[v] -= 2*state[u]*state[v]*w;
+        dE[u] += 2*state[u]*state[v]*w;
+        dE[v] += 2*state[u]*state[v]*w;
     }
 };
 
@@ -221,11 +221,12 @@ std::ostream& operator<<(std::ostream& o, std::vector<int8_t> vec) {
 void MixedSA::dumplog(std::string outpath) {
     std::fstream outstream;
     outstream.open(outpath, std::fstream::out);
-    outstream << "epoch,beta,M" << std::endl;
+    outstream << "epoch,beta,M,ene" << std::endl;
     for (SALog entry: logdata) {
         outstream << entry.epoch << "," <<
                      entry.Beta << "," <<
-                     entry.m    << std::endl;
+                     entry.m    <<  ","<<
+                     entry.ene    << std::endl;
     }
     outstream.close();
 }
@@ -249,30 +250,33 @@ double MixedSA::anneal(){
     size_t flips = 0;
     for (size_t e = 0; e < epochs; e+=active_epochs) {
         for (size_t ae = 0; ae < active_epochs; ae++) {
+            for (size_t be = 0; be < beta_epochs; be++) {
+
             for (size_t index : activelist){
 
                 // size_t indval = index_sampler(random_gen);
-                
-                if (accept(index)) {
-                    flips += 1;
-                    ene += dE[index];
-                    M -= 2*state[index];
-    #ifndef NDEBUG
-                    state[index] = -state[index];
-                    //std::cout << index << std::endl;
-                    //std::cout << ene << " " << dE[index] << " " << energy() << std::endl;
-                    assert(ene == energy());
-                    state[index] = -state[index];
-    #endif
-                    flip(index);
-                    if (ene < best_ene) {
-                        best_ene = ene;
-                        best_state = state;
+                    
+                    if (accept(index)) {
+                        flips += 1;
+                        ene += dE[index];
+                        M -= 2*state[index];
+        #ifndef NDEBUG
+                        state[index] = -state[index];
+                        //std::cout << index << std::endl;
+                        //std::cout << ene << " " << dE[index] << " " << energy() << std::endl;
+                        assert(ene == energy());
+                        state[index] = -state[index];
+        #endif
+                        flip(index);
+                        if (ene < best_ene) {
+                            best_ene = ene;
+                            best_state = state;
+                        }
+    
                     }
- 
                 }
             }
-            logdata.push_back({Beta, M / problem_size, e + ae});
+            logdata.push_back({Beta, std::pow(M / problem_size, 2), ene, e + ae});
             update_T();
         }
         if (active_size != problem_size)
@@ -289,6 +293,7 @@ double MixedSA::anneal(){
 
     std::cout << state << std::endl;
     std::cout << ene << std::endl;
+    std::cout << "Flips: " << flips << std::endl;
     //state = best_state;
     return best_ene;
 }; 
