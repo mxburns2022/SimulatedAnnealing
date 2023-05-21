@@ -35,14 +35,14 @@ void MixedSA::read_graph(std::string gpath){
         state.push_back(spin);
     }
     if ((10 * edges) < (nodes * nodes / 2)) {
-        printf("Sparse\n");
+        //printf("Sparse\n");
         sparse = true;
         Jsparse = std::vector<std::list<SparseEntry>>(nodes);
         for (size_t i = 0; i < nodes;i++) {
             Jsparse[i] = std::list<SparseEntry>();
         }
     } else {
-        printf("Dense\n");
+        //printf("Dense\n");
         sparse = false;
         J = std::vector<double> (nodes*nodes);
     }
@@ -247,7 +247,7 @@ double MixedSA::anneal(){
     M = _M();
     double best_ene = ene;
     std::vector<int8_t> best_state = state;
-    size_t flips = 0;
+    flips = 0;
     for (size_t e = 0; e < epochs; e+=active_epochs) {
         for (size_t ae = 0; ae < active_epochs; ae++) {
             for (size_t be = 0; be < beta_epochs; be++) {
@@ -290,10 +290,6 @@ double MixedSA::anneal(){
 #endif
         //exit(0);
     }
-
-    std::cout << state << std::endl;
-    std::cout << ene << std::endl;
-    std::cout << "Flips: " << flips << std::endl;
     //state = best_state;
     return best_ene;
 }; 

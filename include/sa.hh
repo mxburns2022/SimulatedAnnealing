@@ -9,6 +9,7 @@
 #include <cassert>
 #include <sstream>
 #include <unordered_set>
+#include <bitset>
 /**
  * Experimental implementation of a partially frozen Ising model sampler
  * The energy of a given partition is:
@@ -80,11 +81,12 @@ class MixedSA {
         size_t active_size;
         size_t epochs;
         size_t active_epochs;
-        size_t beta_epochs = 3000; // number of epochs to run at fixed beta
+        size_t beta_epochs = 1; // number of epochs to run at fixed beta
         double Beta0;
         double Beta1;
         double Beta;
         double BetaStep;
+        size_t flips = 0;
         double M;
         double ene;
         size_t next_active;
@@ -105,7 +107,7 @@ class MixedSA {
         std::vector<size_t> traversal_order;
         std::vector<SALog> logdata;
         std::vector<double> biases;
-        
+        std::unordered_map<std::bitset<100>, size_t> sampled_solutions;
 
         void update_T();
         bool accept(size_t proposed_flip_index);
@@ -157,5 +159,11 @@ class MixedSA {
         double anneal(); // anneal, return the energy found at the end
         double cut();
         void dumplog(std::string outfile);
+        size_t get_flips() const {
+            return flips;
+        }
+        size_t vcount() const {
+            return problem_size;
+        }
 
 };
