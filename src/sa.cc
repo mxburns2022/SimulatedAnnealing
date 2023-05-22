@@ -248,12 +248,12 @@ double MixedSA::anneal(){
     double best_ene = ene;
     std::vector<int8_t> best_state = state;
     flips = 0;
+    if (active_size == problem_size) {
+        active_epochs = epochs;
+    }
     for (size_t e = 0; e < epochs; e+=active_epochs) {
         for (size_t ae = 0; ae < active_epochs; ae++) {
-            for (size_t be = 0; be < beta_epochs; be++) {
-
             for (size_t index : activelist){
-
                 // size_t indval = index_sampler(random_gen);
                     
                     if (accept(index)) {
@@ -272,10 +272,8 @@ double MixedSA::anneal(){
                             best_ene = ene;
                             best_state = state;
                         }
-    
                     }
                 }
-            }
             logdata.push_back({Beta, std::pow(M / problem_size, 2), ene, e + ae});
             update_T();
         }
