@@ -92,6 +92,7 @@ void MixedSA::get_next_active() {
     std::vector<SparseEntry> result;
 
     next_fixed = activelist[active_index];
+
     assert(fixedset.find(next_active) != fixedset.end());
     fixedset.erase(next_active);
     fixedset.insert(activelist[active_index]);
@@ -129,11 +130,17 @@ void MixedSA::get_next_active() {
         }
     }
     active_index = ( active_index + 1 ) % active_size;
-     if (traversal_type == Traversal::Sequential) {
-        next_active = (next_active + 1) % problem_size;
-    } else if (traversal_type == Traversal::Random) {
-        std::sample(fixedset.begin(), fixedset.end(), &next_active, 1, random_gen);
+    if (reshuffle) {
+        if (sweep_index == problem_size - 1 && traversal_type == Traversal::Random) {
+            std::sample(fixedset.begin(), fixedset.end(), traversal_order.begin(), fixedset.size(), random_gen);        
+        } 
+        if (sweep_index == 0  && traversal_type == Traversal::Random) {
+            std::shuffle(traversal_order.begin() + active_size, traversal_order.end(), random_gen);
+        }
     }
+    sweep_index = (sweep_index + 1) % problem_size;
+    next_active = traversal_order.at(sweep_index);
+
 }
 
 // void MixedSA::update_order() {
@@ -233,15 +240,7 @@ void MixedSA::dumplog(std::string outpath) {
 // anneal, return the energy found at the end
 double MixedSA::anneal(){
     std::uniform_int_distribution<size_t> index_sampler(0, active_size-1) ;
-    std::vector<size_t> full_list(problem_size);
-    for (size_t i = 0; i < problem_size; i++) {
-        full_list[i] = i;
-    }
-    activelist = std::vector<size_t>(full_list.begin(), full_list.begin() + active_size);
-    next_active = active_size;
-    active_index = 0;
-    activeset = std::unordered_set<size_t>(activelist.begin(), activelist.end());
-    fixedset = std::unordered_set<size_t>(full_list.begin() + active_size, full_list.end());
+
     set_bias();
     ene = energy();
     M = _M();

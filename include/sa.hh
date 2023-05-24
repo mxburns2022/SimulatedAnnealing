@@ -107,7 +107,8 @@ class MixedSA {
         std::vector<size_t> traversal_order;
         std::vector<SALog> logdata;
         std::vector<double> biases;
-        std::unordered_map<std::bitset<100>, size_t> sampled_solutions;
+        size_t sweep_index;
+        bool reshuffle = false;
 
         void update_T();
         bool accept(size_t proposed_flip_index);
@@ -132,25 +133,50 @@ class MixedSA {
                    next_fixed(0),
                    all_visible(false),
                    all_active(false) {};
-        MixedSA(std::string gpath, double _Beta0, double _Beta1, size_t _epochs, size_t _active_epochs, size_t _active = 0, size_t seed = 0):  \
+        MixedSA(std::string gpath, 
+                double _Beta0, 
+                double _Beta1, 
+                size_t _epochs, 
+                size_t _active_epochs,
+                size_t _active = 0, 
+                size_t seed = 0, 
+                Traversal _type = Traversal::Sequential):  \
+                   traversal_type(_type),
                    problem_size(0),
                    epochs(_epochs),
                    active_epochs(_active_epochs),
                    Beta0(_Beta0),
                    Beta1(_Beta1),
                    Beta(_Beta0),
-                   random_gen(seed) {
+                   random_gen(seed),
+                   sweep_index(0) {
             // read input data
             read_graph(gpath);
             active_size = (_active == 0) ? problem_size : _active;
+            sweep_index = active_size;
             BetaStep = (Beta1-Beta0) / (epochs - 1);
             logdata.reserve(epochs);
             activeset.reserve(active_size);
             fixedset = std::unordered_set<size_t>(problem_size-active_size);
             rng = std::uniform_real_distribution<double>(0, 1);
-            traversal_order = std::vector<size_t>(problem_size);
             biases = std::vector<double>(problem_size);
+            traversal_order = std::vector<size_t>(problem_size);
+            for (size_t i = 0; i < problem_size; i++) {
+                traversal_order[i] = i;
+            }
+            if (traversal_type == Traversal::Random) {
+                std::shuffle(traversal_order.begin(), traversal_order.end(), random_gen);
+            }
+            std::vector<size_t> full_list(problem_size);
+            for (size_t i = 0; i < problem_size; i++) {
+                full_list[i] = traversal_order[i];
+            }
 
+            activelist = std::vector<size_t>(full_list.begin(), full_list.begin() + active_size);
+            next_active = traversal_order[sweep_index % problem_size];
+            active_index = 0;
+            activeset = std::unordered_set<size_t>(activelist.begin(), activelist.end());
+            fixedset = std::unordered_set<size_t>(full_list.begin() + active_size, full_list.end());
  
            //set_order();
         }
