@@ -61,15 +61,15 @@ void MixedSA::read_graph(std::string gpath){
         u += offset;
         v += offset;
         if (sparse) {
-            Jsparse[u].push_back({v, -w});
-            Jsparse[v].push_back({u, -w});
+            Jsparse[u].push_back({v, w});
+            Jsparse[v].push_back({u, w});
         } else {
-            ACC2D(J, u, v, nodes) = -w;
-            ACC2D(J, v, u, nodes) = -w;
+            ACC2D(J, u, v, nodes) = w;
+            ACC2D(J, v, u, nodes) = w;
         }
         // initialize dE
-        dE[u] += 2*state[u]*state[v]*w;
-        dE[v] += 2*state[u]*state[v]*w;
+        dE[u] += -2*state[u]*state[v]*w;
+        dE[v] += -2*state[u]*state[v]*w;
     }
 };
 
@@ -217,7 +217,7 @@ double MixedSA::_M(){
 std::ostream& operator<<(std::ostream& o, std::vector<int8_t> vec) {
     o << "[";
     if (vec.size() > 0) {
-        for (size_t i = 0; i < vec.size(); i++) {
+        for (size_t i = 0; i < vec.size() - 1; i++) {
             o << static_cast<int>(vec[i]) << ", ";
         }
         o << static_cast<int>(vec.back());
@@ -237,10 +237,28 @@ void MixedSA::dumplog(std::string outpath) {
     }
     outstream.close();
 }
-// anneal, return the energy found at the end
-double MixedSA::anneal(){
-    std::uniform_int_distribution<size_t> index_sampler(0, active_size-1) ;
 
+void MixedSA::dump_samples(std::string outpath) {
+    std::fstream out;
+    out.open(outpath, std::fstream::out);
+    assert(out.is_open());
+    out << "epoch,beta,ene,state" << std::endl;
+    for (auto i: samples) {
+        out << i.epoch << "," << 
+               i.beta << "," << 
+               i.ene << "," << 
+               "\"" << i.spins << "\"" << std::endl;
+    }
+    out.close();
+};
+// anneal, return the energy found at the end
+double MixedSA::anneal(size_t sample_count){
+    std::uniform_int_distribution<size_t> index_sampler(0, active_size-1) ;
+    size_t sample_epochs = epochs;
+    if (sample_count > 0) {
+        sample_epochs = (epochs - 1) / sample_count;
+        samples.reserve(sample_count);
+    }
     set_bias();
     ene = energy();
     M = _M();
@@ -250,8 +268,9 @@ double MixedSA::anneal(){
     if (active_size == problem_size) {
         active_epochs = epochs;
     }
+    size_t sample_counter = 0;
     for (size_t e = 0; e < epochs; e+=active_epochs) {
-        for (size_t ae = 0; ae < active_epochs; ae++) {
+        for (size_t ae = 0; ae < active_epochs; ae++, sample_counter++) {
             for (size_t index : activelist){
                 // size_t indval = index_sampler(random_gen);
                     
@@ -261,9 +280,13 @@ double MixedSA::anneal(){
                         M -= 2*state[index];
         #ifndef NDEBUG
                         state[index] = -state[index];
-                        //std::cout << index << std::endl;
-                        //std::cout << ene << " " << dE[index] << " " << energy() << std::endl;
-                        assert(ene == energy());
+                        std::cout << index << std::endl;
+                        double ene_other = energy();
+                        std::cout << ene << " " << dE[index] << " " <<ene_other << " "  << cut() << std::endl;
+                        if (ene != ene_other) {
+                            exit(-1);
+                        }
+                        assert(ene == ene_other);
                         state[index] = -state[index];
         #endif
                         flip(index);
@@ -273,6 +296,10 @@ double MixedSA::anneal(){
                         }
                     }
                 }
+            if (sample_counter == sample_epochs) {
+                samples.push_back({e+ae, Beta, ene, state});
+                sample_counter = 0;
+            }
             logdata.push_back({Beta, std::pow(M / problem_size, 2), ene, e + ae});
             update_T();
         }
@@ -287,6 +314,7 @@ double MixedSA::anneal(){
 #endif
         //exit(0);
     }
-    //state = best_state;
+    state = best_state;
+    std::cout << cut() << std::endl;
     return best_ene;
 }; 

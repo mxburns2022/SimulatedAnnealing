@@ -9,7 +9,9 @@
 #include <cassert>
 #include <sstream>
 #include <unordered_set>
-#include <bitset>
+
+#ifndef SA
+#define SA
 /**
  * Experimental implementation of a partially frozen Ising model sampler
  * The energy of a given partition is:
@@ -26,12 +28,29 @@ template <typename T>
 std::ostream& operator<<(std::ostream& o, std::vector<T> vec) {
     o << "[";
     if (vec.size() > 0) {
-        for (size_t i = 0; i < vec.size(); i++) {
+        for (size_t i = 0; i < vec.size() - 1; i++) {
             o << vec[i] << ", ";
         }
         o << vec.back();
     }
     o << "]";
+    return o;
+}
+template <typename T>
+std::ostream& operator<<(std::ostream& o, std::unordered_set<T> set) {
+    o << "{";
+    size_t setsize = set.size();
+    if (setsize > 0) {
+        size_t ind = 0;
+        for (T i : set) {
+            o << i;
+            if (ind != setsize - 1) {
+                o << ", ";
+            }
+            ind++;
+        }
+    }
+    o << "}";
     return o;
 }
 enum class Traversal {
@@ -45,6 +64,12 @@ struct SALog {
     double ene;
     size_t epoch; // epoch in current sync phase
 };
+struct SpinSample {
+    size_t epoch;
+    double beta;
+    double ene;
+    std::vector<int8_t> spins;
+};
 struct SparseEntry {
     size_t u; // index
     double w; // Coupling strength
@@ -54,6 +79,8 @@ struct Edge {
     size_t v; // index
     double w; // Coupling strength
 };
+void topological_sort_sparse(const std::vector<std::list<SparseEntry>>& graph, std::vector<size_t>& out, std::mt19937& rng);
+void topological_sort_dense(const std::vector<double>& graph, std::vector<size_t>& out, std::mt19937& rng);
 #define ACC2D(vec, i, j, size) (vec).at((i)*(size) + (j))
 class MixedSA {
     private:
@@ -107,6 +134,8 @@ class MixedSA {
         std::vector<size_t> traversal_order;
         std::vector<SALog> logdata;
         std::vector<double> biases;
+        std::vector<SpinSample> samples;
+        bool collect_samples;
         size_t sweep_index;
         bool reshuffle = false;
 
@@ -160,12 +189,20 @@ class MixedSA {
             fixedset = std::unordered_set<size_t>(problem_size-active_size);
             rng = std::uniform_real_distribution<double>(0, 1);
             biases = std::vector<double>(problem_size);
-            traversal_order = std::vector<size_t>(problem_size);
-            for (size_t i = 0; i < problem_size; i++) {
-                traversal_order[i] = i;
-            }
-            if (traversal_type == Traversal::Random) {
-                std::shuffle(traversal_order.begin(), traversal_order.end(), random_gen);
+            if (traversal_type == Traversal::Topological) {
+                if (sparse) {
+                    topological_sort_sparse(Jsparse, traversal_order, random_gen);
+                } else {
+                    topological_sort_dense(J, traversal_order, random_gen);
+                }
+            }else {
+                traversal_order = std::vector<size_t>(problem_size);
+                for (size_t i = 0; i < problem_size; i++) {
+                    traversal_order[i] = i;
+                }
+                if (traversal_type == Traversal::Random) {
+                    std::shuffle(traversal_order.begin(), traversal_order.end(), random_gen);
+                }
             }
             std::vector<size_t> full_list(problem_size);
             for (size_t i = 0; i < problem_size; i++) {
@@ -182,7 +219,8 @@ class MixedSA {
         }
         double energy_active(); // calculate energy (-1 for whole problem)
         double energy(); // calculate energy (-1 for whole problem)
-        double anneal(); // anneal, return the energy found at the end
+        double anneal(size_t sample_count = 0); // anneal, return the energy found at the end
+        void dump_samples(std::string outpath);
         double cut();
         void dumplog(std::string outfile);
         size_t get_flips() const {
@@ -193,3 +231,4 @@ class MixedSA {
         }
 
 };
+#endif
