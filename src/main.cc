@@ -36,7 +36,7 @@ void show_help() {
                  "\t-b1|--beta1         <float>:     Ending value for Beta (Default: 1, will equal Beta0\n\t\t\t\t\t\tif --fixed) (Default " << def_b1 << ")" << std::endl <<
                  "\t--fixed             <flag>:      If enabled, will only run simulation at fixed Beta0\n\t\t\t\t\t\t(overrides any -b1 with Beta1=Beta0) (Default " << def_fixed_beta << ")" << std::endl <<
                  "\t--block             <flag>:      Enables blocked Gibbs sampling instead of sliding \n\t\t\t\t\t\twindow (Default " << def_block << ")" << std::endl <<
-                 "\t-e|--sweeps         <uint64_t>:  Number of sweeps to run (AKA ``sweeps'', consider\n\t\t\t\t\t\tflipping each variable once) (Default " << def_epochs << ")" << std::endl <<
+                 "\t-e|--sweeps         <uint64_t>:  Number of sweeps to run (AKA ``sweeps'', consider\n\t\t\t\t\t\tflipping each variable once) (Default " << def_sweeps << ")" << std::endl <<
                  "\t-a|--active         <size_t>:    Size of the active node set. If 0, then active is\n\t\t\t\t\t\tset to the problem size. (Default " << def_active << ")" << std::endl <<
                  "\t-ae|--active_epochs <size_t>:    Number of sweeps to run before shifting the active\n\t\t\t\t\t\tlist. (Default " << def_active_epochs << ")" << std::endl <<
                  "\t-o|--output         <string>:    Output file (CSV formatted) for log info. If not  \n\t\t\t\t\t\tprovided, the data will not be logged" << std::endl <<

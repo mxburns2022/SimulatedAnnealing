@@ -262,9 +262,9 @@ void MixedSA::dump_samples(std::string outpath) {
 // anneal, return the energy found at the end
 double MixedSA::anneal(size_t sample_count){
     std::uniform_int_distribution<size_t> index_sampler(0, active_size-1) ;
-    size_t sample_epochs = epochs;
+    size_t sample_epochs = sweeps;
     if (sample_count > 0) {
-        sample_epochs = (epochs*active_epochs - 1) / sample_count;
+        sample_epochs = (sweeps*active_epochs - 1) / sample_count;
         samples.reserve(sample_count);
     }
     set_bias();
@@ -279,13 +279,13 @@ double MixedSA::anneal(size_t sample_count){
     size_t sample_counter = 0;
     if (activelist.size() != problem_size) {
         if (block) {
-            epochs *= block_indices.size();
+            sweeps *= block_indices.size();
         } else {
-            epochs *= problem_size;
+            sweeps *= problem_size;
         }
-        printf("Epochs: %ld\n", epochs);
     }
-    for (size_t e = 0; e < epochs; e++) {
+    size_t numsweeps = 0;
+    for (size_t e = 0; e < sweeps; e++) {
         for (size_t ae = 0; ae < active_epochs; ae++, sample_counter++) {
             for (size_t index : activelist){
                 // size_t indval = index_sampler(random_gen);
@@ -322,13 +322,14 @@ double MixedSA::anneal(size_t sample_count){
         if (active_size != problem_size) {
             if (block) {
                 get_next_block();
+                numsweeps+=(block_index == 0);
             } else {
                 get_next_active();
+                numsweeps+=(next_active == 0);
             }
         }
         //exit(0);
     }
     state = best_state;
-    std::cout << cut() << std::endl;
     return best_ene;
 }; 
