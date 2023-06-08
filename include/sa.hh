@@ -86,7 +86,7 @@ class MixedSA {
     private:
     /**
      * Private parameters needed:
-     * 1. The number of annealing epochs per partition
+     * 1. The number of annealing sweeps per partition
      * 2. The size of the problem
      * 3. The number of times to run each partition
      * 4. Starting temp
@@ -106,9 +106,9 @@ class MixedSA {
         Traversal traversal_type = Traversal::Sequential;
         size_t problem_size;
         size_t active_size;
-        size_t epochs;
+        size_t sweeps;
         size_t active_epochs;
-        size_t beta_epochs = 1; // number of epochs to run at fixed beta
+        size_t beta_epochs = 1; // number of sweeps to run at fixed beta
         double Beta0;
         double Beta1;
         double Beta;
@@ -158,7 +158,7 @@ class MixedSA {
 
     public:
         MixedSA(): problem_size(0),
-                   epochs(0),
+                   sweeps(0),
                    Beta0(0),
                    Beta1(0),
                    Beta(0),
@@ -177,7 +177,7 @@ class MixedSA {
                 bool blocking = false):  \
                    traversal_type(_type),
                    problem_size(0),
-                   epochs(_epochs),
+                   sweeps(_epochs),
                    active_epochs(_active_epochs),
                    Beta0(_Beta0),
                    Beta1(_Beta1),
@@ -189,8 +189,8 @@ class MixedSA {
             read_graph(gpath);
             active_size = (_active == 0) ? problem_size : _active;
             sweep_index = active_size;
-            BetaStep = (Beta1-Beta0) / (std::max(std::ceil(static_cast<double>(epochs) / active_epochs) - 1, 1.0));
-            logdata.reserve(epochs);
+            BetaStep = (Beta1-Beta0) / (std::max(std::ceil(static_cast<double>(sweeps) / active_epochs) - 1, 1.0));
+            logdata.reserve(sweeps);
             activeset.reserve(active_size);
             fixedset = std::unordered_set<size_t>(problem_size-active_size);
             rng = std::uniform_real_distribution<double>(0, 1);
