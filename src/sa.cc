@@ -277,6 +277,14 @@ double MixedSA::anneal(size_t sample_count){
         active_epochs = 1;
     }
     size_t sample_counter = 0;
+    if (activelist.size() != problem_size) {
+        if (block) {
+            epochs *= block_indices.size();
+        } else {
+            epochs *= problem_size;
+        }
+        printf("Epochs: %ld\n", epochs);
+    }
     for (size_t e = 0; e < epochs; e++) {
         for (size_t ae = 0; ae < active_epochs; ae++, sample_counter++) {
             for (size_t index : activelist){
