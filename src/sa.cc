@@ -88,6 +88,9 @@ void MixedSA::flip(size_t index) {
     dE[index] = -dE[index];
     state[index] = si;
 };
+/**
+ * Get the next active spin in a sweeping Window scheme
+*/
 void MixedSA::get_next_active() {
     std::vector<SparseEntry> result;
 
@@ -141,6 +144,13 @@ void MixedSA::get_next_active() {
     sweep_index = (sweep_index + 1) % problem_size;
     next_active = traversal_order.at(sweep_index);
 
+}
+/**
+ * Get the next active spin in a sweeping Window scheme
+*/
+void MixedSA::get_next_block() {    
+    block_index = (block_index + 1) % block_indices.size();
+    activelist = block_indices[block_index];
 }
 
 // void MixedSA::update_order() {
@@ -215,14 +225,12 @@ double MixedSA::_M(){
     return _Mval;
 }
 std::ostream& operator<<(std::ostream& o, std::vector<int8_t> vec) {
-    o << "[";
     if (vec.size() > 0) {
         for (size_t i = 0; i < vec.size() - 1; i++) {
-            o << static_cast<int>(vec[i]) << ", ";
+            o << static_cast<int>(vec[i]) << " ";
         }
         o << static_cast<int>(vec.back());
     }
-    o << "]";
     return o;
 }
 void MixedSA::dumplog(std::string outpath) {
@@ -256,7 +264,7 @@ double MixedSA::anneal(size_t sample_count){
     std::uniform_int_distribution<size_t> index_sampler(0, active_size-1) ;
     size_t sample_epochs = epochs;
     if (sample_count > 0) {
-        sample_epochs = (epochs - 1) / sample_count;
+        sample_epochs = (epochs*active_epochs - 1) / sample_count;
         samples.reserve(sample_count);
     }
     set_bias();
@@ -266,10 +274,10 @@ double MixedSA::anneal(size_t sample_count){
     std::vector<int8_t> best_state = state;
     flips = 0;
     if (active_size == problem_size) {
-        active_epochs = epochs;
+        active_epochs = 1;
     }
     size_t sample_counter = 0;
-    for (size_t e = 0; e < epochs; e+=active_epochs) {
+    for (size_t e = 0; e < epochs; e++) {
         for (size_t ae = 0; ae < active_epochs; ae++, sample_counter++) {
             for (size_t index : activelist){
                 // size_t indval = index_sampler(random_gen);
@@ -301,17 +309,15 @@ double MixedSA::anneal(size_t sample_count){
                 sample_counter = 0;
             }
             logdata.push_back({Beta, std::pow(M / problem_size, 2), ene, e + ae});
-            update_T();
         }
-        if (active_size != problem_size)
-            get_next_active();
-#ifndef NDEBUG
-        std::vector<double> temp = biases;
-        set_bias();
-        for (auto i : activelist) {
-            assert(std::abs(temp[i] - biases[i]) < 1e-10);
+        update_T();
+        if (active_size != problem_size) {
+            if (block) {
+                get_next_block();
+            } else {
+                get_next_active();
+            }
         }
-#endif
         //exit(0);
     }
     state = best_state;

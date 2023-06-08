@@ -135,14 +135,18 @@ class MixedSA {
         std::vector<SALog> logdata;
         std::vector<double> biases;
         std::vector<SpinSample> samples;
+        std::vector<std::vector<size_t>> block_indices;
+
         bool collect_samples;
         size_t sweep_index;
         bool reshuffle = false;
-
+        bool block = false; // whether to use sliding window or blocking
+        size_t block_index;
         void update_T();
         bool accept(size_t proposed_flip_index);
         void read_graph(std::string gpath);
         void get_next_active();
+        void get_next_block();
         void set_next_fixed();
         void flip(size_t index);
         void synchonize();
@@ -169,7 +173,8 @@ class MixedSA {
                 size_t _active_epochs,
                 size_t _active = 0, 
                 size_t seed = 0, 
-                Traversal _type = Traversal::Sequential):  \
+                Traversal _type = Traversal::Sequential,
+                bool blocking = false):  \
                    traversal_type(_type),
                    problem_size(0),
                    epochs(_epochs),
@@ -178,12 +183,13 @@ class MixedSA {
                    Beta1(_Beta1),
                    Beta(_Beta0),
                    random_gen(seed),
-                   sweep_index(0) {
+                   sweep_index(0),
+                   block(blocking) {
             // read input data
             read_graph(gpath);
             active_size = (_active == 0) ? problem_size : _active;
             sweep_index = active_size;
-            BetaStep = (Beta1-Beta0) / (epochs - 1);
+            BetaStep = (Beta1-Beta0) / (std::max(std::ceil(static_cast<double>(epochs) / active_epochs) - 1, 1.0));
             logdata.reserve(epochs);
             activeset.reserve(active_size);
             fixedset = std::unordered_set<size_t>(problem_size-active_size);
@@ -204,16 +210,28 @@ class MixedSA {
                     std::shuffle(traversal_order.begin(), traversal_order.end(), random_gen);
                 }
             }
-            std::vector<size_t> full_list(problem_size);
-            for (size_t i = 0; i < problem_size; i++) {
-                full_list[i] = traversal_order[i];
-            }
+            if (blocking) {
+                size_t numblocks = static_cast<size_t>(
+                    std::ceil( static_cast<double>(problem_size) / active_size ) );
+                block_indices = std::vector<std::vector<size_t>>(numblocks);
+                size_t lastblock = problem_size % (numblocks*active_size) ?  problem_size-((numblocks-1)*active_size) : active_size;
+                for (size_t i = 0; i < numblocks-1;i++) {
+                    block_indices[i] = std::vector<size_t>(
+                        traversal_order.begin() + i*active_size, traversal_order.begin() + (i+1)*active_size);
+                }   
+                block_indices[numblocks-1] = std::vector<size_t>(
+                        traversal_order.end() - lastblock, traversal_order.end());
+                block_index = 0;
+                activelist = block_indices[0];
+            } else {
+                activelist = std::vector<size_t>(traversal_order.begin(), traversal_order.begin() + active_size);
+                next_active = traversal_order[sweep_index % problem_size];
+                active_index = 0;
+                activeset = std::unordered_set<size_t>(activelist.begin(), activelist.end());
+                fixedset = std::unordered_set<size_t>(traversal_order.begin() + active_size, traversal_order.end());
 
-            activelist = std::vector<size_t>(full_list.begin(), full_list.begin() + active_size);
-            next_active = traversal_order[sweep_index % problem_size];
-            active_index = 0;
-            activeset = std::unordered_set<size_t>(activelist.begin(), activelist.end());
-            fixedset = std::unordered_set<size_t>(full_list.begin() + active_size, full_list.end());
+            }
+            
  
            //set_order();
         }
