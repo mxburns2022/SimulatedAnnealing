@@ -4,13 +4,13 @@
 void MixedSA::update_T() {
     // linearly update
     Beta += BetaStep;
-};
+}
 bool MixedSA::accept(size_t proposed_flip_index){
     if (dE[proposed_flip_index] < 0) {
         return true;
     }
     return exp(-dE[proposed_flip_index] * Beta) > rng(random_gen);
-};
+}
 void MixedSA::read_graph(std::string gpath){
     std::fstream infile;
     infile.open(gpath, std::fstream::in);
@@ -71,7 +71,7 @@ void MixedSA::read_graph(std::string gpath){
         dE[u] += -2*state[u]*state[v]*w;
         dE[v] += -2*state[u]*state[v]*w;
     }
-};
+}
 
 void MixedSA::flip(size_t index) {
     int8_t si = -state[index];
@@ -87,7 +87,7 @@ void MixedSA::flip(size_t index) {
     }
     dE[index] = -dE[index];
     state[index] = si;
-};
+}
 /**
  * Get the next active spin in a sweeping Window scheme
 */
@@ -180,7 +180,7 @@ double MixedSA::energy(){
         }
     }
     return ene;
-};
+}
 
 void MixedSA::set_bias() {
     for (size_t i : activelist) {
@@ -258,7 +258,7 @@ void MixedSA::dump_samples(std::string outpath) {
                "\"" << i.spins << "\"" << std::endl;
     }
     out.close();
-};
+}
 // anneal, return the energy found at the end
 double MixedSA::anneal(size_t sample_count){
     std::uniform_int_distribution<size_t> index_sampler(0, active_size-1) ;
@@ -332,4 +332,4 @@ double MixedSA::anneal(size_t sample_count){
     }
     state = best_state;
     return best_ene;
-}; 
+} 

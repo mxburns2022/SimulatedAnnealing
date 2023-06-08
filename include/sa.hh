@@ -9,6 +9,7 @@
 #include <cassert>
 #include <sstream>
 #include <unordered_set>
+#include <unordered_map>
 
 #ifndef SA
 #define SA
