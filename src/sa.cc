@@ -277,7 +277,7 @@ double MixedSA::anneal(size_t sample_count){
         active_epochs = 1;
     }
     size_t sample_counter = 0;
-    // size_t numsweeps = 0;
+    size_t numsweeps = 0;
     for (size_t e = 0; e < sweeps; e++) {
         for (size_t ae = 0; ae < active_epochs; ae++, sample_counter++) {
             for (size_t index : activelist){
@@ -310,20 +310,18 @@ double MixedSA::anneal(size_t sample_count){
                 sample_counter = 0;
             }
         }
-        // update_T();
-        printf("Sweep: %ld\r", e);
         if (active_size != problem_size) {
             if (block) {
                 get_next_block();
                 if (block_index == 0) {
                     update_T();
-                    // numsweeps++;
+                    numsweeps++;
                 }                
             } else {
                 get_next_active();
                 if (next_active == 0) {
                     update_T();
-                    // numsweeps++;
+                    numsweeps++;
                 }
             }
         } else {
