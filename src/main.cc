@@ -112,8 +112,8 @@ int main(int argc, char** argv) {
     parse_args(argc, argv);
     MixedSA annealer = MixedSA(gpath, b0, b1, sweeps, active_epochs, active, seed, traversal_map.at(order_str), block);
     annealer.anneal(samples);
-    printf("N,blocked,active,active_epochs,sweeps,Beta0,Beta1,ene,flips,seed,traversal\n");
-    printf("%ld,%d,%ld,%ld,%ld,%e,%e,%e,%ld,%ld,%s\n", annealer.vcount(), block,active, active_epochs,sweeps, b0, b1,annealer.energy(), annealer.get_flips(),seed,order_str.c_str());
+    printf("N,blocked,active,active_epochs,sweeps,Beta0,Beta1,ene,cut,flips,seed,traversal\n");
+    printf("%ld,%d,%ld,%ld,%ld,%e,%e,%e,%e,%ld,%ld,%s\n", annealer.vcount(), block,active, active_epochs,sweeps, b0, b1,annealer.energy(),annealer.cut(),annealer.get_flips(),seed,order_str.c_str());
     // printf("Initial Energy: %f %f\n", annealer.energy(), annealer.cut());
     // 
     // printf("Final Energy: %f %f\n", annealer.energy(), annealer.cut());
