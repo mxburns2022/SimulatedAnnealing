@@ -316,18 +316,27 @@ double MixedSA::anneal(size_t sample_count){
                 samples.push_back({e+ae, Beta, ene, state});
                 sample_counter = 0;
             }
-            logdata.push_back({Beta, std::pow(M / problem_size, 2), ene, e + ae});
         }
         update_T();
         if (active_size != problem_size) {
             if (block) {
                 get_next_block();
-                numsweeps+=(block_index == 0);
+                if (block_index == 0) {
+                    update_T();
+                    numsweeps++;
+                }                
             } else {
                 get_next_active();
-                numsweeps+=(next_active == 0);
+                if (next_active == 0) {
+                    update_T();
+                    numsweeps++;
+                }
             }
+        } else {
+            update_T();
         }
+
+        logdata.push_back({Beta, std::pow(M / problem_size, 2), ene, e});
         //exit(0);
     }
     state = best_state;

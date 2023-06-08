@@ -190,8 +190,7 @@ class MixedSA {
             read_graph(gpath);
             active_size = (_active == 0) ? problem_size : _active;
             sweep_index = active_size;
-            BetaStep = (Beta1-Beta0) / (std::max(std::ceil(static_cast<double>(sweeps) / active_epochs) - 1, 1.0));
-            logdata.reserve(sweeps);
+
             activeset.reserve(active_size);
             fixedset = std::unordered_set<size_t>(problem_size-active_size);
             rng = std::uniform_real_distribution<double>(0, 1);
@@ -232,6 +231,16 @@ class MixedSA {
                 fixedset = std::unordered_set<size_t>(traversal_order.begin() + active_size, traversal_order.end());
 
             }
+            logdata.reserve(sweeps);
+            if (activelist.size() != problem_size) {
+                if (block) {
+                    sweeps *= block_indices.size();
+                } else {
+                    sweeps *= problem_size;
+                }
+            }
+            BetaStep = (Beta1-Beta0) / (std::max(std::ceil(static_cast<double>(sweeps) / active_epochs) - 1, 1.0));
+
             
  
            //set_order();
