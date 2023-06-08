@@ -231,6 +231,7 @@ class MixedSA {
                 fixedset = std::unordered_set<size_t>(traversal_order.begin() + active_size, traversal_order.end());
 
             }
+            BetaStep = (Beta1-Beta0) / (std::max(static_cast<double>(sweeps) - 1, 1.0));
             logdata.reserve(sweeps);
             if (activelist.size() != problem_size) {
                 if (block) {
@@ -239,7 +240,6 @@ class MixedSA {
                     sweeps *= problem_size;
                 }
             }
-            BetaStep = (Beta1-Beta0) / (std::max(std::ceil(static_cast<double>(sweeps) / active_epochs) - 1, 1.0));
 
             
  
