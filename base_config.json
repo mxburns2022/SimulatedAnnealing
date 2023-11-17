@@ -6,5 +6,6 @@
     "active_epochs": "1",
     "seed": "0",
     "fixed": "False",
-    "block": "False"
+    "block": "False",
+    "stepsize": "1"
 }
