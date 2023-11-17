@@ -92,63 +92,69 @@ void MixedSA::flip(size_t index) {
  * Get the next active spin in a sweeping Window scheme
 */
 void MixedSA::get_next_active() {
-    std::vector<SparseEntry> result;
 
-    next_fixed = activelist[active_index];
+  // assert(fixedset.find(next_active) != fixedset.end());
+  // fixedset.erase(next_active);
+  // fixedset.insert(activelist[active_index]);
+  // assert(activeset.find(next_active) == activeset.end());
+  // activeset.insert(next_active);
+  // activeset.erase(activelist[active_index]);
+  // if (sparse) {
+  //     for (auto e: Jsparse[next_active]) {
+  //         if ((activeset.find(e.u) != activeset.end())) {
+  //             biases[e.u] -= e.w * state[next_active];
+  //         }
+  //     }
+  //     for (auto e: Jsparse[next_fixed]) {
+  //         if ((activeset.find(e.u) != activeset.end())) {
+  //             biases[e.u] += e.w * state[next_fixed];
+  //         }
+  //     }
+  // } else {
+  //     for (auto j : activeset) {
+  //         biases[j] -= ACC2D(J, j, next_active, problem_size) *
+  //         state[next_active]; biases[j] += ACC2D(J, j, next_fixed,
+  //         problem_size) * state[next_fixed];
+  //     }
+  // }
+  // biases[next_active] = 0.0;
+  // if (sparse) {
+  //     for (auto e: Jsparse[next_active]) {
+  //         if ((activeset.find(e.u) == activeset.end())) {
+  //             biases[next_active] += e.w * state[e.u];
+  //         }
+  //     }
+  // } else {
+  //     for (auto j: fixedset) {
+  //         biases[next_active] += ACC2D(J, j, next_active, problem_size) *
+  //         state[j];
+  //     }
+  // }
+  // active_index = ( active_index + 1 ) % active_size;
+  // if (reshuffle) {
+  //     if (sweep_index == problem_size - 1 && traversal_type ==
+  //     Traversal::Random) {
+  //         std::sample(fixedset.begin(), fixedset.end(),
+  //         traversal_order.begin(), fixedset.size(), random_gen);
+  //     }
+  //     if (sweep_index == 0  && traversal_type == Traversal::Random) {
+  //         std::shuffle(traversal_order.begin() + active_size,
+  //         traversal_order.end(), random_gen);
+  //     }
+  // }
 
-    assert(fixedset.find(next_active) != fixedset.end());
-    fixedset.erase(next_active);
-    fixedset.insert(activelist[active_index]);
-    assert(activeset.find(next_active) == activeset.end());
-    activeset.insert(next_active);
-    activeset.erase(activelist[active_index]);
+  for (size_t i = 0; i < stepsize; i++) {
     activelist[active_index] = next_active;
-    if (sparse) {
-        for (auto e: Jsparse[next_active]) {
-            if ((activeset.find(e.u) != activeset.end())) {
-                biases[e.u] -= e.w * state[next_active];
-            }
-        }
-        for (auto e: Jsparse[next_fixed]) {
-            if ((activeset.find(e.u) != activeset.end())) {
-                biases[e.u] += e.w * state[next_fixed];
-            }
-        }
-    } else {
-        for (auto j : activeset) {
-            biases[j] -= ACC2D(J, j, next_active, problem_size) * state[next_active];
-            biases[j] += ACC2D(J, j, next_fixed, problem_size) * state[next_fixed];
-        }
-    }
-    biases[next_active] = 0.0;
-    if (sparse) {
-        for (auto e: Jsparse[next_active]) {
-            if ((activeset.find(e.u) == activeset.end())) {
-                biases[next_active] += e.w * state[e.u];
-            }
-        }
-    } else {
-        for (auto j: fixedset) {
-            biases[next_active] += ACC2D(J, j, next_active, problem_size) * state[j];
-        }
-    }
-    active_index = ( active_index + 1 ) % active_size;
-    if (reshuffle) {
-        if (sweep_index == problem_size - 1 && traversal_type == Traversal::Random) {
-            std::sample(fixedset.begin(), fixedset.end(), traversal_order.begin(), fixedset.size(), random_gen);        
-        } 
-        if (sweep_index == 0  && traversal_type == Traversal::Random) {
-            std::shuffle(traversal_order.begin() + active_size, traversal_order.end(), random_gen);
-        }
-    }
     sweep_index = (sweep_index + 1) % problem_size;
     next_active = traversal_order.at(sweep_index);
+    active_index = (active_index + 1) % active_size;
+  }
 
 }
 /**
  * Get the next active spin in a sweeping Window scheme
 */
-void MixedSA::get_next_block() {    
+void MixedSA::get_next_block() {
     block_index = (block_index + 1) % block_indices.size();
     activelist = block_indices[block_index];
 }
@@ -279,9 +285,11 @@ double MixedSA::anneal(size_t sample_count){
     size_t sample_counter = 0;
     size_t numsweeps = 0;
     for (size_t e = 0; e < sweeps; e++) {
-        for (size_t ae = 0; ae < active_epochs; ae++, sample_counter++) {
-            for (size_t index : activelist){
-                // size_t indval = index_sampler(random_gen);
+    //   std::cout << e << "/" << sweeps << std::endl;
+      for (size_t ae = 0; ae < active_epochs; ae++, sample_counter++) {
+        for (size_t index : activelist) {
+          mhsteps++;
+                // size_t index = index_sampler(random_gen);
                     
                     if (accept(index)) {
                         flips += 1;
@@ -316,18 +324,19 @@ double MixedSA::anneal(size_t sample_count){
                 if (block_index == 0) {
                     update_T();
                     numsweeps++;
-                }                
+                }
             } else {
+                size_t previous_active = next_active;
                 get_next_active();
-                if (next_active == 0) {
+                if (previous_active > next_active) {
                     update_T();
                     numsweeps++;
+                    // std::cout << activelist << std::endl;
                 }
             }
         } else {
             update_T();
         }
-
         logdata.push_back({Beta, std::pow(M / problem_size, 2), ene, e});
         //exit(0);
     }

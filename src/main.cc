@@ -22,6 +22,9 @@ size_t sweeps = def_sweeps;
 size_t active_epochs = def_active_epochs;
 bool fixed_beta = def_fixed_beta;
 bool block = def_block;
+size_t stepsize = 1;
+double best;
+bool gavebest = false;
 bool output = false;
 size_t samples = def_samples;
 std::string order_str = def_order_str;
@@ -32,10 +35,12 @@ std::string outpath = "output_log.csv";
 void show_help() {
     std::cout << "Partially Frozen Ising Sampler Usage:" << std::endl <<
                  "\t-g|--graph          <string>:    Path to GSET-formatted edgelist file" << std::endl <<
+                 "\t-b|--best           <double>:    Best known cut solution" << std::endl <<
                  "\t-b0|--beta0         <float>:     Starting value for Beta (Default " << def_b0 << ")" << std::endl <<
                  "\t-b1|--beta1         <float>:     Ending value for Beta (Default: 1, will equal Beta0\n\t\t\t\t\t\tif --fixed) (Default " << def_b1 << ")" << std::endl <<
                  "\t--fixed             <flag>:      If enabled, will only run simulation at fixed Beta0\n\t\t\t\t\t\t(overrides any -b1 with Beta1=Beta0) (Default " << def_fixed_beta << ")" << std::endl <<
                  "\t--block             <flag>:      Enables blocked Gibbs sampling instead of sliding \n\t\t\t\t\t\twindow (Default " << def_block << ")" << std::endl <<
+                 "\t--stepsize          <uint64_t>:  Window stepsize (Default " << 1 << ")" << std::endl <<
                  "\t-e|--sweeps         <uint64_t>:  Number of sweeps to run (AKA ``sweeps'', consider\n\t\t\t\t\t\tflipping each variable once) (Default " << def_sweeps << ")" << std::endl <<
                  "\t-a|--active         <size_t>:    Size of the active node set. If 0, then active is\n\t\t\t\t\t\tset to the problem size. (Default " << def_active << ")" << std::endl <<
                  "\t-ae|--active_epochs <size_t>:    Number of sweeps to run before shifting the active\n\t\t\t\t\t\tlist. (Default " << def_active_epochs << ")" << std::endl <<
@@ -68,6 +73,10 @@ bool parse_args(int argc, char** argv) {
         }else if (arg == "-b0" || arg == "--beta0") {
             assert(i != argc-1);
             b0 = std::atof(argv[++i]);
+        }else if (arg == "-b" || arg == "--best") {
+          assert(i != argc - 1);
+          gavebest = true;
+            best = std::atof(argv[++i]);
         }else if (arg == "-b1" || arg == "--beta1") {
             assert(i != argc-1);
             b1 = std::atof(argv[++i]);
@@ -94,6 +103,9 @@ bool parse_args(int argc, char** argv) {
         }else if (arg == "--samples") {
             assert(i != argc-1);
             samples = std::atol(argv[++i]);
+        }else if (arg == "--stepsize") {
+            assert(i != argc-1);
+            stepsize = std::atol(argv[++i]);
         }else if (arg == "--sample_file") {
             assert(i != argc-1);
             sample_path = argv[++i];
@@ -110,10 +122,18 @@ bool parse_args(int argc, char** argv) {
 
 int main(int argc, char** argv) {
     parse_args(argc, argv);
-    MixedSA annealer = MixedSA(gpath, b0, b1, sweeps, active_epochs, active, seed, traversal_map.at(order_str), block);
+    MixedSA annealer = MixedSA(gpath, b0, b1, sweeps, active_epochs, active, stepsize, seed, traversal_map.at(order_str), block);
     annealer.anneal(samples);
-    printf("N,blocked,active,active_epochs,sweeps,Beta0,Beta1,ene,cut,flips,seed,traversal\n");
-    printf("%ld,%d,%ld,%ld,%ld,%e,%e,%e,%e,%ld,%ld,%s\n", annealer.vcount(), block,active, active_epochs,sweeps, b0, b1,annealer.energy(),annealer.cut(),annealer.get_flips(),seed,order_str.c_str());
+    size_t mhsteps = annealer.get_steps();
+    printf("N,blocked,stepsize,active,active_epochs,sweeps,mhsteps,Beta0,Beta1,ene,cut,dist,flips,seed,traversal\n");
+    double cut = annealer.cut();
+    if (gavebest) {
+        printf("%ld,%d,%ld,%ld,%ld,%ld,%ld,%g,%g,%g,%g,%g,%ld,%ld,%s\n", annealer.vcount(), block,stepsize,active, active_epochs,sweeps,mhsteps, b0, b1,annealer.energy(),cut, best-cut,annealer.get_flips(),seed,order_str.c_str());
+
+    } else {
+        printf("%ld,%d,%ld,%ld,%ld,%ld,%ld,%g,%g,%g,%g,,%ld,%ld,%s\n", annealer.vcount(), block,stepsize,active, active_epochs,sweeps,mhsteps, b0, b1,annealer.energy(),cut,annealer.get_flips(),seed,order_str.c_str());
+      
+    }
     // printf("Initial Energy: %f %f\n", annealer.energy(), annealer.cut());
     // 
     // printf("Final Energy: %f %f\n", annealer.energy(), annealer.cut());

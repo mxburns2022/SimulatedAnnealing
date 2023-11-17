@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.0)
+
+project(block_sa)
+set(CMAKE_CXX_COMPILER "g++")
+set(CMAKE_CXX_EXTENSIONS OFF)
+if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
+  if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+  endif()
+endif()
+
+file(GLOB SOURCEFILES src/*.cc)
+add_executable(${PROJECT_NAME} ${SOURCEFILES})
+target_include_directories(${PROJECT_NAME} BEFORE PUBLIC include)
+target_compile_options(${PROJECT_NAME} BEFORE PRIVATE -std=c++17 -Wall -Werror -pedantic)
+add_link_options(-std=c++17 -Wall -Werror -pedantic)

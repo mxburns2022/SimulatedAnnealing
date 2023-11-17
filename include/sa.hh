@@ -115,6 +115,8 @@ class MixedSA {
         double Beta;
         double BetaStep;
         size_t flips = 0;
+        size_t mhsteps = 0;
+        size_t stepsize = 1;
         double M;
         double ene;
         size_t next_active;
@@ -173,6 +175,7 @@ class MixedSA {
                 size_t _epochs, 
                 size_t _active_epochs,
                 size_t _active = 0, 
+                size_t _stepsize = 1, 
                 size_t seed = 0, 
                 Traversal _type = Traversal::Sequential,
                 bool blocking = false):  \
@@ -190,7 +193,7 @@ class MixedSA {
             read_graph(gpath);
             active_size = (_active == 0) ? problem_size : _active;
             sweep_index = active_size;
-
+            stepsize = _stepsize;
             activeset.reserve(active_size);
             fixedset = std::unordered_set<size_t>(problem_size-active_size);
             rng = std::uniform_real_distribution<double>(0, 1);
@@ -233,13 +236,11 @@ class MixedSA {
             }
             logdata.reserve(sweeps);
             if (activelist.size() != problem_size) {
-                BetaStep = (Beta1-Beta0) / (std::max(static_cast<double>(active_epochs) - 1, 1.0));
-                std::cout << BetaStep << std::endl;
-                getchar();
+                BetaStep = (Beta1-Beta0) / (std::max(static_cast<double>(sweeps) - 1, 1.0));
                 if (block) {
-                    sweeps *= block_indices.size();
+                    sweeps = std::round( sweeps * static_cast<double>(problem_size) / active_size ) ;
                 } else {
-                    sweeps *= problem_size;
+                    sweeps = std::round( sweeps * static_cast<double>(problem_size) / stepsize ) ;
                 }
             } else {
                 BetaStep = (Beta1-Beta0) / (std::max(static_cast<double>(sweeps) - 1, 1.0));
@@ -260,6 +261,9 @@ class MixedSA {
         }
         size_t vcount() const {
             return problem_size;
+        }
+        size_t get_steps() const {
+            return mhsteps;
         }
 
 };
