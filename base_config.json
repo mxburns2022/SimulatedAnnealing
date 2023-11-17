@@ -1,0 +1,10 @@
+{
+    "beta0": "0.2",
+    "beta1": "6.0",
+    "sweeps": "20000",
+    "active": "0",
+    "active_epochs": "1",
+    "seed": "0",
+    "fixed": "False",
+    "block": "False"
+}
